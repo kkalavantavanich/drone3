@@ -16,29 +16,13 @@
  * PIN8 (B0) = PCINT0  (PCMSK0) = RX 5 - Aux 2
  */
 
-/* ==== Servo Pins ====
- * PIN11 (B3) = Servo 1 = OC2A
- * PIN3  (D3) = Servo 2 = OC2B
- * PIN10 (B2) = Servo 3 = OC1B
- * PIN9  (B1) = Servo 4 = OC1A
+/* ==== Motor Pins ====
+ * PIN11 (B3) = Motor 1 = OC2A
+ * PIN3  (D3) = Motor 2 = OC2B
+ * PIN10 (B2) = Motor 3 = OC1B
+ * PIN9  (B1) = Motor 4 = OC1A
  */
-
-#define SERVO1_HIGH() PORTB |= (1<<PORTB3)
-#define SERVO1_LOW()  PORTB &= ~(1<<PORTB3)
-#define SERVO1_TOGGLE() PORTB ^= (1<<PORTB3)
-
-#define SERVO2_HIGH() PORTD |= (1<<PORTD3)
-#define SERVO2_LOW()  PORTD &= ~(1<<PORTD3)
-#define SERVO2_TOGGLE() PORTD ^= (1<<PORTD3)
-
-#define SERVO3_HIGH() PORTB |= (1<<PORTB2)
-#define SERVO3_LOW() PORTB &= ~(1<<PORTB2)
-#define SERVO3_TOGGLE() PORTB ^= (1<<PORTB2)
-
-#define SERVO4_HIGH() PORTB |= (1<<PORTB1)
-#define SERVO4_LOW() PORTB &= ~(1<<PORTB1)
-#define SERVO4_TOGGLE() PORTB ^= (1<<PORTB1)
-
+#define LOOPTIME_US 30000
 
 /// TIMER ///
 
@@ -154,10 +138,10 @@ ISR(PCINT2_vect) {
 //////////////////////////////////////////////////////////////////////////////////
 
 //// PWM ////
-#define PWM_MIN_INPUT 1500
-#define PWM_MAX_INPUT 4200
-#define PWM_MIN_OUTPUT 125
-#define PWM_MAX_OUTPUT 250
+#define PWM_MIN_INPUT 1500UL
+#define PWM_MAX_INPUT 4200UL
+#define PWM_MIN_OUTPUT 170UL
+#define PWM_MAX_OUTPUT 250UL
 
 #define RANGE_INPUT (PWM_MAX_INPUT - PWM_MIN_INPUT)
 #define RANGE_OUTPUT (PWM_MAX_OUTPUT - PWM_MIN_OUTPUT)
@@ -175,7 +159,7 @@ void pwm_init() {
 
 	// Start Clocks Prescale/64
 	TCCR1B |= (1 << CS10) | (1 << CS11);
-	TCCR2B |= (1 << CS20) | (1 << CS21);
+	TCCR2B |= (1 << CS22);
 
 	// Enable Interrupts
 //	TIMSK1 |= (1 << TOIE);
@@ -187,6 +171,15 @@ void pwm_update() {
 	OCR1B = (((rxValues[0] - PWM_MIN_INPUT) * RANGE_OUTPUT) / RANGE_INPUT) + PWM_MIN_OUTPUT;
 	OCR2A = (((rxValues[0] - PWM_MIN_INPUT) * RANGE_OUTPUT) / RANGE_INPUT) + PWM_MIN_OUTPUT;
 	OCR2B = (((rxValues[0] - PWM_MIN_INPUT) * RANGE_OUTPUT) / RANGE_INPUT) + PWM_MIN_OUTPUT;
+	print(">> ");
+	print(OCR1A, 10);
+	print(", ");
+	print(OCR1B, 10);
+	print(", ");
+	print(OCR2A, 10);
+	print(", ");
+	print(OCR2B, 10);
+	println();
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -238,9 +231,6 @@ int main(void) {
 
 	///////////////////////// MAIN LOOP ///////////////////////////
 	while (true) {
-		// Toggle LEDs
-		SERVO1_TOGGLE();
-
 		// Console Number
 		print(++i);
 		print(" >> ");
@@ -255,17 +245,17 @@ int main(void) {
 		baro_data = i2c::baro::read();
 
 		// Calculate current orientation
-		_gyro_imm[0] += motion_data.gyro_x;		// Add angle change [deg/s] to immediate.
-		_gyro_imm[1] += motion_data.gyro_y;
-		_gyro_imm[2] += motion_data.gyro_z;
+//		_gyro_imm[0] += motion_data.gyro_x * LOOPTIME_US / 1000000;		// Add angle change [deg/s] to immediate.
+//		_gyro_imm[1] += motion_data.gyro_y * LOOPTIME_US / 1000000;
+//		_gyro_imm[2] += motion_data.gyro_z * LOOPTIME_US / 1000000;
 
-		currentOrientation[0] = (_gyro_imm[0] + _gyro_prev[0]) / 3;	 // Calculate current orientation
-		currentOrientation[1] = (_gyro_imm[1] + _gyro_prev[1]) / 3;
-		currentOrientation[2] = (_gyro_imm[2] + _gyro_prev[2]) / 3;
+//		currentOrientation[0] = (_gyro_imm[0]);	 // Calculate current orientation
+//		currentOrientation[1] = (_gyro_imm[1]);
+//		currentOrientation[2] = (_gyro_imm[2]);
 
-		_gyro_prev[0] = _gyro_imm[0] >> 1;
-		_gyro_prev[1] = _gyro_imm[1] >> 1;
-		_gyro_prev[2] = _gyro_imm[2] >> 1;
+//		_gyro_prev[0] = _gyro_imm[0] >> 1;
+//		_gyro_prev[1] = _gyro_imm[1] >> 1;
+//		_gyro_prev[2] = _gyro_imm[2] >> 1;
 
 		// Calculate current velocity
 		_acc_imm[0] += motion_data.acc_x;
@@ -282,10 +272,10 @@ int main(void) {
 
 		// Print Data
 		i2c::printData(motion_data);
-		print(" ");
-		i2c::printData(compass_data);
-		print(" ");
-		i2c::printData(baro_data);
+//		print(" ");
+//		i2c::printData(compass_data);
+//		print(" ");
+//		i2c::printData(baro_data);
 //		print("   ");
 //		print("Orient.[");
 //		print(i2c::ga::convertFromRawGyro(currentOrientation[0]));
@@ -296,21 +286,19 @@ int main(void) {
 //		print("deg]");
 
 
-		/*
-		for (int _i = 0; _i < 10; _i++) {
-			println();
-			print(">> ");
-			print(rxValues[0]);
-			print(", ");
-			print(rxValues[1]);
-			print(", ");
-			print(rxValues[2]);
-			print(", ");
-			print(rxValues[3]);
-		}
-		*/
+
+		println();
+		print(">> ");
+		print(rxValues[0]);
+		print(", ");
+		print(rxValues[1]);
+		print(", ");
+		print(rxValues[2]);
+		print(", ");
+		print(rxValues[3]);
+
 		pwm_update();
-		_delay_ms(200);
+		_delay_us(LOOPTIME_US);
 		println();
 	}
 }

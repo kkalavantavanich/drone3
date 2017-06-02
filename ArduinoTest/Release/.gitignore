@@ -1,0 +1,10 @@
+/core/
+/makefile
+/sources.mk
+/subdir.mk
+*.cpp.o
+*.cpp.d
+*.ar
+*.eep
+*.elf
+*.hex
